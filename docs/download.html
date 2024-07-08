@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>download</title>
+
+  <style>
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 0;
+      }
+
+      50% {
+        opacity: 1;
+      }
+    }
+
+    .ellipsis {
+      display: inline-block;
+      margin-left: 5px;
+    }
+
+    .ellipsis span {
+      animation: blink 1s infinite;
+      animation-delay: 0s;
+    }
+
+    .ellipsis span:nth-child(2) {
+      animation-delay: 0.3s;
+    }
+
+    .ellipsis span:nth-child(3) {
+      animation-delay: 0.6s;
+    }
+  </style>
+
+  <script defer>
+    async function fetchWorkflowData() {
+      const baseUrl = 'https://api.github.com/repos/solvcon/modmesh/actions/runs';
+      const queryParams = '?event=schedule&status=success';
+      const response = await fetch(`${baseUrl}${queryParams}`);
+      if (!response.ok) {
+        console.error(`Failed to fetch workflow runs: ${response.statusText}`);
+        return; // Exit if the initial fetch fails
+      }
+      const data = await response.json();
+      const devbuildRuns = data.workflow_runs.filter(run => run.name === "devbuild");
+      if (devbuildRuns.length === 0) {
+        console.error('No successful devbuild runs found.');
+        return; // Exit if no devbuild runs are found
+      }
+
+      let foundArtifact = false; // Flag to track if any valid artifacts are found
+      for (const run of devbuildRuns) {
+        await new Promise(resolve => setTimeout(resolve, 200)); // delay 200ms between tries to avoid rate limiting
+        const artifactsResponse = await fetch(run.artifacts_url);
+        if (!artifactsResponse.ok) {
+          console.error(`Failed to fetch artifacts for run ID: ${run.id}`);
+          continue; // Skip to the next run if the fetch fails
+        }
+        const artifactsData = await artifactsResponse.json();
+        if (artifactsData.artifacts && artifactsData.artifacts.length > 0) {
+          const artifactId = artifactsData.artifacts[0].id;
+          console.log('Artifact ID:', artifactId);
+          const downloadUrl = `https://github.com/solvcon/modmesh/actions/runs/${run.id}/artifacts/${artifactId}`
+          console.log('Download URL:', downloadUrl);
+          window.location.href = downloadUrl;
+          foundArtifact = true;
+          break; // Exit the loop after finding the first valid artifact
+        } else {
+          console.error(`No artifacts found for run ID: ${run.id}`);
+        }
+      }
+      if (!foundArtifact) {
+        console.error('No downloadable artifacts were found after checking all eligible devbuild runs.');
+      }
+    }
+    fetchWorkflowData();
+  </script>
+</head>
+
+<body>
+  <h1>Redirecting to the latest build<span class="ellipsis"><span>.</span><span>.</span><span>.</span></span></h1>
+  <p>If you are not redirected, please check the console for errors.</p>
+</body>
+
+</html>
