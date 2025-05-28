@@ -464,6 +464,42 @@ jobs:
           make buildext VERBOSE=1
           make pytest VERBOSE=1
 
+      - name: generate portable
+        if: ${{ matrix.cmake_build_type == 'Release' }}
+        run: |
+          rm -f build/*/Makefile
+          python3 -m pip install pyinstaller
+          make buildext pilot BUILD_QT=ON
+          mkdir portable && cd portable
+          cat > modmesh.py <<'EOF'
+          import os
+          import modmesh.pilot as mp
+          os.environ["QT3D_RENDERER"] = "opengl"
+          mp.launch()
+          EOF
+          cp -R ../modmesh .
+          cp ../_modmesh*.so .
+          cp -R ../resources .
+          pyinstaller --onefile \
+                      --windowed \
+                      --add-data "modmesh:modmesh" \
+                      --hidden-import PySide6.Qt3DCore \
+                      --hidden-import PySide6.Qt3DRender \
+                      --hidden-import PySide6.Qt3DExtras \
+                      --hidden-import PySide6.Qt3DInput \
+                      --icon="resources/pilot/solvcon.icns" \
+                      modmesh.py
+          rm -rf dist/modmesh
+
+      - name: archive portable artifacts
+        if: ${{ matrix.cmake_build_type == 'Release' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: portable
+          path: portable/dist
+
+
+
   build_windows:
 
     if: ${{ github.event_name != 'schedule' || (github.event_name == 'schedule' && vars.MMGH_NIGHTLY == 'enable') }}
