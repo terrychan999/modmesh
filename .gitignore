@@ -21,3 +21,4 @@ setup.mk
 *.pdb
 *.env
 profiling/results/
+portable/

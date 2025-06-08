@@ -4,6 +4,7 @@
 
 import pathlib
 import subprocess
+import sys
 
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
@@ -60,8 +61,8 @@ class cmake_build_ext(build_ext):
             raise RuntimeError('{} return {}'.format(cmd, proc.returncode))
 
 
-def main():
-    setup(
+def main(is_py2app):
+    setup_kwargs = dict(
         name="modmesh",
         version="0.0",
         packages=[
@@ -71,12 +72,35 @@ def main():
             'modmesh.pilot.airfoil',
             'modmesh.plot',
         ],
-        ext_modules=[CMakeExtension("_modmesh")],
+        setup_requires=['py2app'],
         cmdclass={'build_ext': cmake_build_ext},
+        options={
+            'py2app': {
+                'argv_emulation': True,
+                'iconfile': 'resources/pilot/solvcon.icns',
+                'packages': ['modmesh', 'PySide6'],
+                'excludes': ['PyInstaller', 'packaging', 'wheel'],
+                'plist': {
+                    'CFBundleName': 'modmesh',
+                },
+            }
+        },
     )
 
+    if is_py2app:
+        setup_kwargs['app'] = ['modmesh.py']
+        setup_kwargs['entry_points'] = {
+            'console_scripts': [
+                'modmesh=modmesh.pilot:launch',
+            ],
+        }
+    else:
+        setup_kwargs['ext_modules'] = [CMakeExtension('_modmesh')]
+
+    setup(**setup_kwargs)
 
 if __name__ == '__main__':
-    main()
+    is_py2app = 'py2app' in sys.argv
+    main(is_py2app)
 
 # vim: set ff=unix fenc=utf8 et sw=4 ts=4 sts=4:
